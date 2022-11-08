@@ -5,29 +5,43 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flatfile SDK Demo</title>
-  <script src="https://unpkg.com/@flatfile/sdk/dist/index.js"></script>
+  <script src="https://unpkg.com/@flatfile/sdk@2.1.5/dist/index.js"></script>
 </head>
 <body>
   <button id="import">Import Data</button>
 
   <script>
-    const importer = flatfileImporter('<%= token %>')
-
-    importer.on('init', ({ batchId }) => {
-      console.log(`Batch ${batchId} has been initialized.`)
-    })
-    importer.on('launch', ({ batchId }) => {
-      console.log(`Batch ${batchId} has been launched.`)
-    })
-    importer.on('error', (error) => {
-      console.error(error)
-    })
-    importer.on('complete', async (payload) => {
-      console.log(JSON.stringify(await payload.data(), null, 4))
-    })
+    async function handleImport() {
+      const importer = Flatfile.requestDataFromUser({
+        token: '<%= token %>',
+        // mountUrl: 'http://localhost:8080',
+        // apiUrl: 'https://api.us.flatfile.io',
+        chunkSize: 100,
+        onData: (chunk, next) => {
+          console.log(`current chunk: ${chunk.currentChunkIndex}`)
+          
+          if (chunk.records.length > 1) {
+            const rejectOne = new PartialRejection(
+            new RecordError(chunk.records[0].recordId, [{
+              field: 'name', message: 'arbitrary error'
+            }])
+          )
+          console.log({ rejectOne })
+          next(
+            rejectOne
+          )
+          } else {
+            next()
+          }
+        },
+        onComplete: () => {
+          console.log('complete!!!')
+        }
+      })
+    }
 
     document.querySelector('#import').addEventListener('click', async () => {
-      await importer.launch()
+      await handleImport()
     })
   </script>
 </body>
